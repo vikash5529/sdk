@@ -18,7 +18,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@core-js/sdk": ["../../core-js/src"],
+      "@core-js/plugin-bitcoin": ["../../plugins/bitcoin/src"],
+      "@core-js/plugin-tron": ["../../plugins/tron/src"]
+    }
   },
   "include": [
     "src"

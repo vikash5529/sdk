@@ -1,32 +1,35 @@
-import { PluginConstructor, NetworkConfig } from '../types';
+import { PluginConstructor } from '../types';
 
-export class PluginRegistry {
-  private plugins: Map<string, PluginConstructor> = new Map();
-  private allowOverrides: boolean;
+export interface PluginRegistryOptions {
+  allowOverrides: boolean;
+}
 
-  constructor(options: { allowOverrides: boolean }) {
-    this.allowOverrides = options.allowOverrides;
+export class PluginRegistry<T extends string = string> {
+  private plugins: Map<string, PluginConstructor<T>> = new Map();
+  private options: PluginRegistryOptions;
+
+  constructor(options: PluginRegistryOptions) {
+    this.options = options;
   }
 
-  registerPlugin(plugin: PluginConstructor): void {
-    if (this.plugins.has(plugin.name) && !this.allowOverrides) {
-      throw new Error(`Plugin ${plugin.name} is already registered`);
+  registerPlugin(plugin: PluginConstructor<T>): void {
+    if (!this.options.allowOverrides && this.plugins.has(plugin.name)) {
+      throw new Error(`Plugin ${plugin.name} already registered`);
     }
     this.plugins.set(plugin.name, plugin);
   }
 
-  getPluginByName(name: string): PluginConstructor | undefined {
+  getPluginByName(name: string): PluginConstructor<T> | undefined {
     return this.plugins.get(name);
   }
 
-  findPluginForNetwork(network: NetworkConfig): PluginConstructor | undefined {
+  findPluginForNetwork(network: { chainType: T }): PluginConstructor<T> | undefined {
     return Array.from(this.plugins.values()).find(plugin => 
-      plugin.chainType === network.chainType && 
-      plugin.isSupported(network)
+      plugin.isSupported(network as any)
     );
   }
 
-  getPluginsByChainType(chainType: string): PluginConstructor[] {
+  getPluginsByChainType(chainType: string): PluginConstructor<T>[] {
     return Array.from(this.plugins.values())
       .filter(plugin => plugin.chainType === chainType);
   }

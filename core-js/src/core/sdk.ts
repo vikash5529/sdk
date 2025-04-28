@@ -5,40 +5,84 @@ import {
   ConnectionProvider, 
   NetworkConfig,
   Transaction,
-  SDKProvider
+  SDKProvider,
+  CustomChainConfig,
+  CustomChainPlugin,
 } from '../types';
 import { PluginRegistry } from './plugin-registry';
+import { ChainInterface } from './chain-interface';
 
 export enum SDKEvents {
   CONNECTED = 'connected',
   DISCONNECTED = 'disconnected',
   ERROR = 'error',
-  NETWORK_CHANGED = 'network_changed'
+  NETWORK_CHANGED = 'network_changed',
+  CHAIN_ADDED = 'chain_added',
+  CHAIN_REMOVED = 'chain_removed'
 }
 
-export class BlockchainSDK extends EventEmitter {
-  private config: SDKConfig;
+export class BlockchainSDK<T extends string = string> extends EventEmitter {
   private currentAdapter: SDKProvider | null = null;
-  private currentNetwork: NetworkConfig | null = null;
+  private currentNetwork: NetworkConfig<T> | null = null;
   private connectionInfo: ConnectionInfo | null = null;
-  private pluginRegistry: PluginRegistry;
+  private pluginRegistry: PluginRegistry<T>;
+  private customChains: Map<string, ChainInterface> = new Map();
+  private chainInterfaces: Map<string, ChainInterface> = new Map();
+  
+  // Add index signature for dynamic chain properties
+  [key: string]: any;
+  
+  // Chain interfaces
+  readonly bitcoin: ChainInterface;
+  readonly tron: ChainInterface;
+  readonly evm: ChainInterface;
 
-  constructor(config: SDKConfig, options: { allowPluginOverrides?: boolean } = {}) {
+  constructor(config: SDKConfig<T>) {
     super();
-    this.config = config;
     this.pluginRegistry = new PluginRegistry({
-      allowOverrides: options.allowPluginOverrides ?? false
+      allowOverrides: false
     });
     
     if (config.plugins?.length) {
       config.plugins.forEach(plugin => {
         this.pluginRegistry.registerPlugin(plugin);
+        const network = config.networks.find(n => n.chainType === plugin.chainType);
+        if (network) {
+          const provider = plugin.createProvider(network);
+          const chainInterface = new ChainInterface(provider, network);
+          this.chainInterfaces.set(plugin.chainType, chainInterface);
+          
+          Object.defineProperty(this, plugin.chainType, {
+            get: () => chainInterface,
+            enumerable: true,
+            configurable: true
+          });
+        }
       });
     }
     
     if (config.networks.length > 0) {
       this.currentNetwork = config.networks[0];
     }
+  }
+
+  // Add support for custom chains
+  addCustomChain(chainConfig: CustomChainConfig, plugin: CustomChainPlugin): void {
+    const provider = plugin.createProvider(chainConfig);
+    const chainInterface = new ChainInterface(provider, chainConfig);
+    this.customChains.set(chainConfig.chainType, chainInterface);
+    this.emit(SDKEvents.CHAIN_ADDED, chainConfig);
+  }
+
+  removeCustomChain(chainType: string): void {
+    if (this.customChains.has(chainType)) {
+      this.customChains.delete(chainType);
+      this.emit(SDKEvents.CHAIN_REMOVED, chainType);
+    }
+  }
+
+  getCustomChain(chainType: string): ChainInterface | undefined {
+    return this.customChains.get(chainType);
   }
 
   async connect(

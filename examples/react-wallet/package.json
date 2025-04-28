@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@core-js/sdk": "*",
-    "@core-js/plugin-bitcoin": "*",
-    "@core-js/plugin-tron": "*",
+    "@core-js/sdk": "file:../../core-js",
+    "@core-js/plugin-bitcoin": "file:../../plugins/bitcoin",
+    "@core-js/plugin-tron": "file:../../plugins/tron",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",

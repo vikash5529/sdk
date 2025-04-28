@@ -1,9 +1,17 @@
-export type ChainType = 'evm' | 'solana' | 'tron' | 'bitcoin';
+import { EventEmitter } from 'events';
+import { ChainInterface } from '../core/chain-interface';
 
-export interface NetworkConfig {
-  id: number | string;
+export type ChainType = 'evm' | 'solana' | 'tron' | 'bitcoin' | string;
+
+// Add dynamic chain property type
+export type ChainProperties = {
+  [key: string]: ChainInterface;
+};
+
+export interface NetworkConfig<T extends string = string> {
+  id: string | number;
   name: string;
-  chainType: ChainType;
+  chainType: T;
   rpcUrl: string;
   blockExplorerUrl?: string;
   nativeCurrency?: {
@@ -36,19 +44,19 @@ export interface Transaction {
   gasPrice?: string;
 }
 
-export interface PluginConstructor {
+export interface PluginConstructor<T extends string = string> {
   name: string;
-  chainType: ChainType;
-  createProvider: (network: NetworkConfig) => SDKProvider;
-  isSupported: (network: NetworkConfig) => boolean;
+  chainType: T;
+  createProvider: (network: NetworkConfig<T>) => SDKProvider;
+  isSupported: (network: NetworkConfig<T>) => boolean;
 }
 
-export interface SDKConfig {
-  networks: NetworkConfig[];
-  metadata: SDKMetadata;
+export interface SDKConfig<T extends string = string> {
   projectId: string;
+  networks: NetworkConfig<T>[];
+  metadata: SDKMetadata;
   theme?: ThemeConfig;
-  plugins?: PluginConstructor[];
+  plugins?: PluginConstructor<T>[];
 }
 
 export interface SDKMetadata {
@@ -69,11 +77,36 @@ export interface ThemeConfig {
 }
 
 export interface SDKProvider {
-  init(options?: unknown, providerType?: ConnectionProvider): Promise<void>;
-  getChainId(): Promise<string | number>;
-  getAccounts(): Promise<string[]>;
-  getBalance(address?: string): Promise<string>;
-  signMessage(message: string): Promise<string>;
-  sendTransaction(transaction: Transaction): Promise<string>;
-  disconnect(): Promise<void>;
+  init: (config?: any, providerType?: ConnectionProvider) => Promise<void>;
+  getChainId: () => Promise<string | number>;
+  getAccounts: () => Promise<string[]>;
+  getBalance: (address?: string) => Promise<string>;
+  signMessage: (message: string) => Promise<string>;
+  sendTransaction: (transaction: any) => Promise<string>;
+  disconnect: () => Promise<void>;
+  [key: string]: any; // Allow custom methods
+}
+
+// Custom chain types
+export interface CustomChainConfig extends NetworkConfig {
+  customRpcUrl?: string;
+  customExplorerUrl?: string;
+  customFeatures?: Record<string, any>;
+}
+
+export interface CustomChainProvider extends SDKProvider {
+  customMethod?: () => Promise<any>;
+}
+
+export interface CustomChainPlugin {
+  name: string;
+  chainType: string;
+  createProvider: (network: CustomChainConfig) => CustomChainProvider;
+  isSupported: (network: NetworkConfig) => boolean;
+}
+
+export class BlockchainSDK extends EventEmitter {
+  // Add dynamic chain properties
+  [key: string]: any;
+  // ... rest of the class definition ...
 } 

@@ -1,40 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import { CoreSDK, Chain, WalletProvider } from '@core-js/sdk';
-import { BitcoinPlugin } from '@core-js/plugin-bitcoin';
-import { TronPlugin } from '@core-js/plugin-tron';
+import React, { useState, useEffect } from "react";
+import {
+  BlockchainSDK,
+  ChainType,
+  ConnectionProvider,
+  SDKConfig,
+  NetworkConfig,
+  BitcoinPlugin,
+  TronPlugin
+} from "@core-js/sdk";
+import { CustomChainPlugin } from "./plugins/custom-chain";
+
+type MyChainTypes = 'evm' | 'bitcoin' | 'tron' | 'custom_chain';
 
 interface WalletState {
   address: string;
   balance: string;
-  chain: Chain;
+  chain: ChainType;
   connected: boolean;
 }
 
 const initialWalletState: WalletState = {
-  address: '',
-  balance: '0',
-  chain: Chain.ETHEREUM,
+  address: "",
+  balance: "0",
+  chain: "evm",
   connected: false,
 };
 
+const networks: NetworkConfig<MyChainTypes>[] = [
+  {
+    id: 1,
+    name: "Ethereum Mainnet",
+    chainType: "evm",
+    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+  },
+  {
+    id: "mainnet",
+    name: "Bitcoin Mainnet",
+    chainType: "bitcoin",
+    rpcUrl: "https://blockstream.info/api/",
+  },
+  {
+    id: "mainnet",
+    name: "Tron Mainnet",
+    chainType: "tron",
+    rpcUrl: "https://api.trongrid.io",
+  },
+  {
+    id: "custom_1",
+    name: "Custom Chain",
+    chainType: "custom_chain",
+    rpcUrl: "https://custom-chain-rpc.com",
+  }
+];
+
+const sdkConfig: SDKConfig<MyChainTypes> = {
+  projectId: "YOUR_PROJECT_ID",
+  networks,
+  metadata: {
+    name: "Multi-Chain Wallet Example",
+    description: "Example wallet application using Core JS SDK",
+    url: "http://localhost:3000",
+    icons: [],
+  },
+  plugins: [
+    new BitcoinPlugin(),
+    new TronPlugin(),
+    new CustomChainPlugin()
+  ],
+};
+
 const App: React.FC = () => {
-  const [sdk, setSdk] = useState<CoreSDK | null>(null);
+  const [sdk, setSdk] = useState<BlockchainSDK<MyChainTypes> | null>(null);
   const [walletState, setWalletState] = useState<WalletState>(initialWalletState);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
+  const [customChainData, setCustomChainData] = useState<any>(null);
 
   useEffect(() => {
     const initializeSDK = async () => {
       try {
-        const newSdk = new CoreSDK({
-          projectId: 'YOUR_PROJECT_ID',
-          plugins: [
-            new BitcoinPlugin(),
-            new TronPlugin(),
-          ],
-        });
+        const newSdk = new BlockchainSDK<MyChainTypes>(sdkConfig);
         setSdk(newSdk);
       } catch (err) {
-        setError('Failed to initialize SDK');
+        setError("Failed to initialize SDK");
         console.error(err);
       }
     };
@@ -42,23 +94,28 @@ const App: React.FC = () => {
     initializeSDK();
   }, []);
 
-  const handleConnect = async (provider: WalletProvider) => {
+  const handleConnect = async (provider: ConnectionProvider, chainType: ChainType) => {
     if (!sdk) return;
 
     try {
-      const wallet = await sdk.connect(provider);
-      const address = await wallet.getAddress();
-      const balance = await wallet.getBalance();
-      
+      const connection = await sdk.connect(provider, { plugin: chainType });
+
       setWalletState({
-        address,
-        balance: balance.toString(),
-        chain: wallet.chain,
-        connected: true,
+        address: connection.address,
+        balance: await sdk.getBalance(connection.address),
+        chain: connection.chainType,
+        connected: connection.isConnected,
       });
-      setError('');
+
+      // If it's a custom chain, get custom data
+      if (chainType === 'custom_chain') {
+        const customData = await sdk.custom_chain.customMethod();
+        setCustomChainData(customData);
+      }
+
+      setError("");
     } catch (err) {
-      setError('Failed to connect wallet');
+      setError("Failed to connect wallet");
       console.error(err);
     }
   };
@@ -69,9 +126,10 @@ const App: React.FC = () => {
     try {
       await sdk.disconnect();
       setWalletState(initialWalletState);
-      setError('');
+      setCustomChainData(null);
+      setError("");
     } catch (err) {
-      setError('Failed to disconnect wallet');
+      setError("Failed to disconnect wallet");
       console.error(err);
     }
   };
@@ -84,8 +142,10 @@ const App: React.FC = () => {
           <div className="max-w-md mx-auto">
             <div className="divide-y divide-gray-200">
               <div className="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                <h1 className="text-3xl font-bold text-center mb-8">Multi-Chain Wallet</h1>
-                
+                <h1 className="text-3xl font-bold text-center mb-8">
+                  Multi-Chain Wallet
+                </h1>
+
                 {error && (
                   <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                     <span className="block sm:inline">{error}</span>
@@ -103,6 +163,12 @@ const App: React.FC = () => {
                     <p>
                       <span className="font-bold">Balance:</span> {walletState.balance}
                     </p>
+                    {customChainData && (
+                      <div className="mt-4 p-4 bg-gray-50 rounded">
+                        <h3 className="font-bold mb-2">Custom Chain Data:</h3>
+                        <pre className="text-sm">{JSON.stringify(customChainData, null, 2)}</pre>
+                      </div>
+                    )}
                     <button
                       onClick={handleDisconnect}
                       className="w-full bg-red-500 text-white rounded-lg px-4 py-2 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
@@ -114,32 +180,32 @@ const App: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     <button
-                      onClick={() => handleConnect(WalletProvider.METAMASK)}
+                      onClick={() => handleConnect(ConnectionProvider.INSTALLED_WALLET, 'evm')}
                       className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
                       aria-label="Connect MetaMask"
                     >
                       Connect MetaMask
                     </button>
                     <button
-                      onClick={() => handleConnect(WalletProvider.PHANTOM)}
-                      className="w-full bg-purple-500 text-white rounded-lg px-4 py-2 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
-                      aria-label="Connect Phantom"
+                      onClick={() => handleConnect(ConnectionProvider.INSTALLED_WALLET, 'bitcoin')}
+                      className="w-full bg-yellow-500 text-white rounded-lg px-4 py-2 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
+                      aria-label="Connect Xverse"
                     >
-                      Connect Phantom
+                      Connect Xverse
                     </button>
                     <button
-                      onClick={() => handleConnect(WalletProvider.TRONLINK)}
+                      onClick={() => handleConnect(ConnectionProvider.INSTALLED_WALLET, 'tron')}
                       className="w-full bg-blue-500 text-white rounded-lg px-4 py-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       aria-label="Connect TronLink"
                     >
                       Connect TronLink
                     </button>
                     <button
-                      onClick={() => handleConnect(WalletProvider.XVERSE)}
-                      className="w-full bg-yellow-500 text-white rounded-lg px-4 py-2 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
-                      aria-label="Connect Xverse"
+                      onClick={() => handleConnect(ConnectionProvider.INSTALLED_WALLET, 'custom_chain')}
+                      className="w-full bg-purple-500 text-white rounded-lg px-4 py-2 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50"
+                      aria-label="Connect Custom Chain"
                     >
-                      Connect Xverse
+                      Connect Custom Chain
                     </button>
                   </div>
                 )}
@@ -152,4 +218,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App; 
+export default App;
