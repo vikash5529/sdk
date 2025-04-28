@@ -44,22 +44,53 @@ core-js-sdk/
 
 ## Development
 
-### Building the SDK
+### Available Scripts
 
 ```bash
+# Install dependencies
+npm install
+
 # Build all packages
 npm run build
 
 # Build specific package
 npm run build --workspace=core-js
-```
 
-### Running Examples
+# Start development server (builds packages first)
+npm run dev
 
-```bash
-# Start React example
+# Start example application (same as dev)
 npm run start:example
 ```
+
+### Development Workflow
+
+1. First, install dependencies:
+```bash
+npm install
+```
+
+2. Build the SDK and plugins:
+```bash
+npm run build
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+The development server will:
+1. Build all packages
+2. Start the example React application
+3. Open the application in your default browser
+
+### Hot Reloading
+
+The development server supports hot reloading:
+- Changes to the SDK will trigger a rebuild
+- Changes to the example app will trigger a page refresh
+- Changes to plugins will trigger a rebuild of affected packages
 
 ## Configuration
 
@@ -229,6 +260,25 @@ export default {
 - `network_changed`: Emitted when network changes
 - `chain_added`: Emitted when custom chain is added
 - `chain_removed`: Emitted when custom chain is removed
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Build fails**
+   - Ensure all dependencies are installed: `npm install`
+   - Check for TypeScript errors
+   - Verify workspace configuration
+
+2. **Development server won't start**
+   - Make sure the build completed successfully
+   - Check if port 3000 is available
+   - Verify all required packages are built
+
+3. **Plugin not working**
+   - Ensure the plugin is properly registered in the SDK config
+   - Check if the plugin's chain type matches the network configuration
+   - Verify the plugin's dependencies are installed
 
 ## Contributing
 

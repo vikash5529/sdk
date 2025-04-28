@@ -8,6 +8,6 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=core-js && npm run build --workspaces --if-present",
-    "start:example": "npm start --workspace=examples/react-wallet"
+    "dev": "npm run build && npm start --workspace=examples/react-wallet"
   }
 }
