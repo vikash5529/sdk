@@ -57,6 +57,7 @@ export interface SDKConfig<T extends string = string> {
   metadata: SDKMetadata;
   theme?: ThemeConfig;
   plugins?: PluginConstructor<T>[];
+  provider: SDKProvider;
 }
 
 export interface SDKMetadata {
@@ -109,4 +110,9 @@ export class BlockchainSDK extends EventEmitter {
   // Add dynamic chain properties
   [key: string]: any;
   // ... rest of the class definition ...
+}
+
+export interface ChainInterface extends SDKProvider {
+  getNetwork(): NetworkConfig;
+  getProvider(): SDKProvider;
 } 

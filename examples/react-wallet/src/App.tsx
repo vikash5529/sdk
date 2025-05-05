@@ -100,18 +100,31 @@ const App: React.FC = () => {
     try {
       const connection = await sdk.connect(provider, { plugin: chainType });
 
+      // Use chain-specific methods
+      let balance = "0";
+      switch (chainType) {
+        case 'evm':
+          balance = await sdk.evm.getBalance(connection.address);
+          break;
+        case 'bitcoin':
+          balance = await sdk.bitcoin.getBalance(connection.address);
+          break;
+        case 'tron':
+          balance = await sdk.tron.getBalance(connection.address);
+          break;
+        case 'custom_chain':
+          balance = await sdk.custom_chain.getBalance(connection.address);
+          const customData = await sdk.custom_chain.customMethod();
+          setCustomChainData(customData);
+          break;
+      }
+
       setWalletState({
         address: connection.address,
-        balance: await sdk.getBalance(connection.address),
+        balance,
         chain: connection.chainType,
         connected: connection.isConnected,
       });
-
-      // If it's a custom chain, get custom data
-      if (chainType === 'custom_chain') {
-        const customData = await sdk.custom_chain.customMethod();
-        setCustomChainData(customData);
-      }
 
       setError("");
     } catch (err) {
